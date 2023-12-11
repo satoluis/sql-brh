@@ -1,0 +1,92 @@
+CREATE TABLE ATRIBUICAO (
+    Atribuicao_ID NUMBER PRIMARY KEY,
+    Colaborador_ID NUMBER,
+    Projeto_ID NUMBER,
+    Data_Inicio DATE,
+    Data_Fim DATE,
+    FOREIGN KEY (Colaborador_ID) REFERENCES COLABORADOR(Colaborador_ID),
+    FOREIGN KEY (Projeto_ID) REFERENCES PROJETO(Projeto_ID)
+);
+--criando tabelas
+
+CREATE TABLE COLABORADOR (
+    Colaborador_ID NUMBER PRIMARY KEY,
+    Nome VARCHAR(50),
+    Departamento_ID NUMBER,
+    Papel_ID NUMBER,
+    Data_Admissao DATE,
+    FOREIGN KEY (Departamento_ID) REFERENCES DEPARTAMENTO(Departamento_ID),
+    FOREIGN KEY (Papel_ID) REFERENCES PAPEL(Papel_ID)
+);
+
+CREATE TABLE DEPARTAMENTO (
+    Departamento_ID NUMBER PRIMARY KEY,
+    Nome VARCHAR(50),
+    Localizacao VARCHAR(50)
+);
+
+CREATE TABLE DEPENDENTE (
+    Dependente_ID NUMBER PRIMARY KEY,
+    Colaborador_ID NUMBER,
+    Nome VARCHAR(50),
+    Data_Nascimento DATE,
+    FOREIGN KEY (Colaborador_ID) REFERENCES COLABORADOR(Colaborador_ID)
+);
+
+CREATE TABLE PAPEL (
+    Papel_ID NUMBER PRIMARY KEY,
+    Nome VARCHAR(50)
+);
+
+CREATE TABLE PROJETO (
+    Projeto_ID NUMBER PRIMARY KEY,
+    Nome VARCHAR(50),
+    Data_Inicio DATE,
+    Data_Fim DATE
+);
+
+--adc colaborador
+INSERT INTO colaboradores (nome, cargo, projeto)
+VALUES ('Valdeci Silva', 'Analista', 'BI');
+
+SET @Colaborador_ID = LAST_INSERT_ID();
+
+INSERT INTO telefones (Colaborador_ID, tipo, numero)
+VALUES 
+    (@Colaborador_ID, 'celular', '(11) 9 9888-1000'),
+    (@Colaborador_ID, 'residencial', '(11) 5666-4000');
+
+INSERT INTO emails (Colaborador_ID, tipo, endereco)
+VALUES 
+    (@Colaborador_ID, 'pessoal', 'vsilva@teste.com'),
+    (@Colaborador_ID, 'trabalho', 'val.silva@brh.com');
+
+INSERT INTO dependentes (Colaborador_ID, nome)
+VALUES 
+    (@Colaborador_ID, 'Ana Maria Silva'),
+    (@Colaborador_ID, 'Juliana Silva');
+
+--selec departamento
+
+SELECT TEC, nome
+FROM departamento;
+
+
+--selec dependente
+
+SELECT 
+    c.nome as 'Valdeci Silva',
+    d.nome as 'Juliana Silva',
+    d.data_nascimento,
+    d.parentesco
+FROM colaborador c
+JOIN dependentes d ON c.id = d.Colaborador_ID;
+
+
+
+
+
+
+
+
+
