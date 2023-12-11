@@ -1,0 +1,190 @@
+--filtrar dependentes por mes de nasc
+SELECT 
+    d.Dependente_ID,
+    d.Colaborador_ID,
+    d.Nome,
+    d.Data_Nascimento
+FROM 
+    DEPENDENTE d
+JOIN 
+    COLABORADOR c ON d.Colaborador_ID = c.Colaborador_ID
+WHERE 
+    EXTRACT(MONTH FROM d.Data_Nascimento) IN (4, 5, 6) -- Nascidos em abril, maio ou junho
+    OR UPPER(d.Nome) LIKE '%H%'; -- Nome contém a letra "H" (ignorando maiúsculas/minúsculas)
+
+--filtrar pelo maior salario
+SELECT 
+    c.Nome,
+    c.Salario
+FROM 
+    COLABORADOR c
+WHERE 
+    c.Salario = (SELECT MAX(Salario) FROM COLABORADOR);
+
+--classificando senioridade
+
+SELECT
+    Matricula,
+    Nome,
+    Salario,
+    CASE
+        WHEN Salario <= 3000.00 THEN 'Júnior'
+        WHEN Salario BETWEEN 3000.01 AND 6000.00 THEN 'Pleno'
+        WHEN Salario BETWEEN 6000.01 AND 20000.00 THEN 'Sênior'
+        ELSE 'Corpo Diretor'
+    END AS Nivel_Senioridade
+FROM
+    COLABORADOR
+ORDER BY
+    Nivel_Senioridade, Nome;
+
+
+--listar colaboradores em projetos
+
+SELECT
+    d.Nome AS Nome_Departamento,
+    p.Nome AS Nome_Projeto,
+    COUNT(DISTINCT c.Colaborador_ID) AS Quantidade_Colaboradores
+FROM
+    DEPARTAMENTO d
+JOIN
+    COLABORADOR c ON d.Departamento_ID = c.Departamento_ID
+JOIN
+    ATRIBUICAO a ON c.Colaborador_ID = a.Colaborador_ID
+JOIN
+    PROJETO p ON a.Projeto_ID = p.Projeto_ID
+GROUP BY
+    d.Departamento_ID, p.Projeto_ID, d.Nome, p.Nome;
+
+--listar colaboradores e dependentes
+
+SELECT
+    c.Nome AS Nome_Colaborador,
+    COUNT(d.Dependente_ID) AS Quantidade_Dependentes
+FROM
+    COLABORADOR c
+LEFT JOIN
+    DEPENDENTE d ON c.Colaborador_ID = d.Colaborador_ID
+GROUP BY
+    c.Colaborador_ID, c.Nome;
+
+
+--listar faixa etaria dos dependentes
+
+SELECT
+    d.CPF,
+    d.Nome AS Nome_Dependente,
+    TO_CHAR(d.Data_Nascimento, 'DD/MM/YYYY') AS Data_Nascimento,
+    d.Parentesco,
+    c.Matricula AS Matricula_Colaborador,
+    EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM d.Data_Nascimento) AS Idade,
+    CASE
+        WHEN EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM d.Data_Nascimento) < 18 THEN 'Menor de idade'
+        ELSE 'Maior de idade'
+    END AS Faixa_etaria
+FROM
+    DEPENDENTE d
+JOIN
+    COLABORADOR c ON d.Colaborador_ID = c.Colaborador_ID
+ORDER BY
+    c.Matricula, d.Nome;
+
+--paginar listagem de colaboradores
+
+SELECT
+    Colaborador_ID,
+    Nome
+FROM
+    COLABORADOR
+ORDER BY
+    Nome
+OFFSET 10 ROWS
+FETCH FIRST 10 ROWS ONLY;
+
+
+SELECT
+    Colaborador_ID,
+    Nome
+FROM
+    COLABORADOR
+ORDER BY
+    Nome
+OFFSET 10 ROWS
+FETCH FIRST 10 ROWS ONLY;
+
+--relatorio de plano de saude
+
+SELECT
+    c.Nome AS Nome_Colaborador,
+    c.Salario,
+    c.Senioridade,
+    COUNT(d.Dependente_ID) AS Quantidade_Dependentes,
+    SUM(
+        CASE
+            WHEN c.Senioridade = 'Júnior' THEN 0.01 * c.Salario
+            WHEN c.Senioridade = 'Pleno' THEN 0.02 * c.Salario
+            WHEN c.Senioridade = 'Sênior' THEN 0.03 * c.Salario
+            WHEN c.Senioridade = 'Corpo diretor' THEN 0.05 * c.Salario
+            ELSE 0
+        END
+        +
+        CASE
+            WHEN d.Tipo = 'Cônjuge' THEN 100.00
+            WHEN d.Idade >= 18 THEN 50.00
+            WHEN d.Idade < 18 THEN 25.00
+            ELSE 0
+        END
+    ) AS Mensalidade_Total
+FROM
+    COLABORADOR c
+LEFT JOIN
+    DEPENDENTE d ON c.Colaborador_ID = d.Colaborador_ID
+GROUP BY
+    c.Colaborador_ID, c.Nome, c.Salario, c.Senioridade
+ORDER BY
+    Nome_Colaborador;
+
+
+
+--listar colaboradores
+
+SELECT
+    c.Nome as Nome_Colaborador,
+    COUNT(d.Dependente_ID) as Quantidade_Dependentes
+FROM
+    COLABORADOR c
+JOIN
+    DEPENDENTE d ON c.Colaborador_ID = d.Colaborador_ID
+GROUP BY
+    c.Colaborador_ID, c.Nome
+HAVING
+    COUNT(d.Dependente_ID) >= 2
+ORDER BY
+    Quantidade_Dependentes DESC, Nome_Colaborador ASC;
+
+--listar colaboradores que participaram de projetos
+
+SELECT
+    c.Colaborador_ID,
+    c.Nome
+FROM
+    COLABORADOR c
+WHERE
+    NOT EXISTS (
+        SELECT
+            p.Projeto_ID
+        FROM
+            PROJETO p
+        WHERE
+            NOT EXISTS (
+                SELECT
+                    1
+                FROM
+                    ATRIBUICAO a
+                WHERE
+                    a.Colaborador_ID = c.Colaborador_ID
+                    AND a.Projeto_ID = p.Projeto_ID
+            )
+    );
+
+
