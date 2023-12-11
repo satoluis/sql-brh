@@ -1,0 +1,166 @@
+--criar procedure Insere_Projeto
+
+CREATE OR REPLACE PROCEDURE brh.insere_projeto (
+    p_nome_projeto IN VARCHAR2,
+    p_responsavel_projeto IN VARCHAR2
+)
+AS
+    v_projeto_id NUMBER;
+BEGIN
+    -- Inserir novo projeto
+    INSERT INTO PROJETO (Nome) VALUES (p_nome_projeto) RETURNING Projeto_ID INTO v_projeto_id;
+
+    -- Associar o responsável ao projeto
+    INSERT INTO ATRIBUICAO (Colaborador_ID, Projeto_ID, Data_Inicio)
+    VALUES (p_responsavel_projeto, v_projeto_id, SYSDATE);
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Tratar exceções ou registrar logs conforme necessário
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Erro ao inserir projeto: ' || SQLERRM);
+END insere_projeto;
+/
+
+--criar funcao calcula_idade
+
+CREATE OR REPLACE FUNCTION brh.calcula_idade (
+    p_data_nascimento IN DATE
+)
+RETURN NUMBER
+IS
+    v_idade NUMBER;
+BEGIN
+    -- Calcular a idade usando a diferença entre a data atual e a data de nascimento
+    SELECT EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM p_data_nascimento)
+    INTO v_idade
+    FROM DUAL;
+
+    RETURN v_idade;
+EXCEPTION
+
+--criar funcao finaliza_projeto
+
+CREATE OR REPLACE FUNCTION brh.finaliza_projeto (
+    p_projeto_id IN NUMBER
+)
+RETURN DATE
+IS
+    v_data_fim_projeto DATE;
+BEGIN
+    SELECT SYSTIMESTAMP INTO v_data_fim_projeto FROM DUAL;
+
+    UPDATE PROJETO
+    SET Data_Fim = v_data_fim_projeto
+    WHERE Projeto_ID = p_projeto_id;
+
+    RETURN v_data_fim_projeto;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END finaliza_projeto;
+/
+
+--validar novo projeto
+
+CREATE OR REPLACE PROCEDURE brh.insere_projeto (
+    p_nome_projeto IN VARCHAR2,
+    p_responsavel_projeto IN VARCHAR2
+)
+AS
+    v_projeto_id NUMBER;
+BEGIN
+    IF LENGTH(p_nome_projeto) < 2 OR p_nome_projeto IS NULL THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Nome de projeto inválido! Deve ter dois ou mais caracteres.');
+    END IF;
+
+    INSERT INTO PROJETO (Nome) VALUES (p_nome_projeto) RETURNING Projeto_ID INTO v_projeto_id;
+
+    INSERT INTO ATRIBUICAO (Colaborador_ID, Projeto_ID, Data_Inicio)
+    VALUES (p_responsavel_projeto, v_projeto_id, SYSDATE);
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Erro ao inserir projeto: ' || SQLERRM);
+END insere_projeto;
+/
+
+
+--validar calculo da idade
+
+CREATE OR REPLACE FUNCTION brh.calcula_idade (
+    p_data_nascimento IN DATE
+)
+RETURN NUMBER
+IS
+    v_idade NUMBER;
+BEGIN
+    IF p_data_nascimento IS NULL OR p_data_nascimento > SYSDATE THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Impossível calcular idade! Data inválida: ' || TO_CHAR(p_data_nascimento, 'DD/MM/YYYY') || '.');
+    END IF;
+
+    SELECT EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM p_data_nascimento)
+    INTO v_idade
+    FROM DUAL;
+
+    RETURN v_idade;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END calcula_idade;
+/
+
+--criar procedure define_atribuicao
+
+CREATE OR REPLACE PROCEDURE brh.define_atribuicao (
+    p_nome_colaborador IN VARCHAR2,
+    p_nome_projeto IN VARCHAR2,
+    p_nome_papel IN VARCHAR2
+)
+AS
+    v_colaborador_id NUMBER;
+    v_projeto_id NUMBER;
+    v_papel_id NUMBER;
+BEGIN
+    -- Verificar se o colaborador existe
+    SELECT Colaborador_ID INTO v_colaborador_id
+    FROM COLABORADOR
+    WHERE Nome = p_nome_colaborador;
+
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Colaborador inexistente: ' || p_nome_colaborador || '.');
+    
+    -- Verificar se o projeto existe
+    SELECT Projeto_ID INTO v_projeto_id
+    FROM PROJETO
+    WHERE Nome = p_nome_projeto;
+
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Projeto inexistente: ' || p_nome_projeto || '.');
+
+    -- Verificar se o papel existe
+    BEGIN
+        SELECT Papel_ID INTO v_papel_id
+        FROM PAPEL
+        WHERE Nome = p_nome_papel;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            -- Se o papel não existir, cadastrar novo papel
+            INSERT INTO PAPEL (Nome) VALUES (p_nome_papel) RETURNING Papel_ID INTO v_papel_id;
+    END;
+
+    -- Inserir atribuição
+    INSERT INTO ATRIBUICAO (Colaborador_ID, Projeto_ID, Papel_ID, Data_Inicio)
+    VALUES (v_colaborador_id, v_projeto_id, v_papel_id, SYSDATE);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Tratar exceções ou registrar logs
+        DBMS_OUTPUT.PUT_LINE('Erro ao definir atribuição: ' || SQLERRM);
+END define_atribuicao;
+/
